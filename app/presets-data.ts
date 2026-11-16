@@ -10,96 +10,327 @@ export interface DemoPreset {
   textInput?: string;
   url?: string;
   isPdfMock?: boolean;
+  getCanvasImage?: () => string;
 }
 
-// 1. Invoice Sample (فاکتور رسمی)
-const invoiceSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="460" height="280" viewBox="0 0 460 280">
-  <rect width="460" height="280" fill="#ffffff" stroke="#cbd5e1" stroke-width="2" rx="8"/>
-  <text x="230" y="35" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#0f172a" text-anchor="middle">فاکتور رسمی فروش تجهیزات هوشمند</text>
-  <text x="420" y="65" font-family="Arial, sans-serif" font-size="12" fill="#64748b" text-anchor="end">شماره فاکتور: ۹۸۲۱</text>
-  <text x="40" y="65" font-family="Arial, sans-serif" font-size="12" fill="#64748b">تاریخ: ۱۴۰۳/۰۸/۲۵</text>
-  <line x1="30" y1="78" x2="430" y2="78" stroke="#e2e8f0" stroke-width="1.5"/>
-  <text x="420" y="105" font-family="Arial, sans-serif" font-size="13" fill="#1e293b" text-anchor="end">۱. وبکم کنفرانس ۴K: ۱۲,۰۰۰,۰۰۰ تومان</text>
-  <text x="420" y="135" font-family="Arial, sans-serif" font-size="13" fill="#1e293b" text-anchor="end">۲. میکروفون بی‌سیم: ۴,۵۰۰,۰۰۰ تومان</text>
-  <text x="420" y="165" font-family="Arial, sans-serif" font-size="13" fill="#1e293b" text-anchor="end">۳. کابل رابط پرسرعت: ۸۵۰,۰۰۰ تومان</text>
-  <line x1="30" y1="185" x2="430" y2="185" stroke="#e2e8f0" stroke-width="1.5"/>
-  <text x="420" y="215" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#0f172a" text-anchor="end">جمع کل: ۱۷,۳۵۰,۰۰۰ تومان</text>
-  <text x="230" y="255" font-family="Arial, sans-serif" font-size="12" fill="#059669" font-weight="bold" text-anchor="middle">وضعیت پرداخت: موفق</text>
-</svg>`;
+// -------------------------------------------------------------
+// CLIENT-SIDE REAL PNG GENERATORS (Zero Tofu, Native OS Typography)
+// -------------------------------------------------------------
 
-// 2. Handwritten Letter Sample (نامه اداری)
-const handwritingSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="460" height="260" viewBox="0 0 460 260">
-  <rect width="460" height="260" fill="#fdfbf7" stroke="#e2e8f0" stroke-width="2" rx="8"/>
-  <text x="230" y="32" font-family="Arial, sans-serif" font-size="14" font-style="italic" fill="#475569" text-anchor="middle">بسمه تعالی</text>
-  <text x="420" y="65" font-family="Arial, sans-serif" font-size="13" fill="#334155" text-anchor="end">تاریخ: ۱۴۰۳/۰۸/۲۵</text>
-  <text x="420" y="95" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1e293b" text-anchor="end">مدیریت محترم غرفه فناوری</text>
-  <text x="420" y="130" font-family="Arial, sans-serif" font-size="13" fill="#334155" text-anchor="end">احتراماً، عطف به مذاکرات اخیر، آمادگی این مجموعه جهت پیاده‌سازی</text>
-  <text x="420" y="155" font-family="Arial, sans-serif" font-size="13" fill="#334155" text-anchor="end">زیرساخت هوش مصنوعی و اتوماسیون سازمانی اعلام می‌گردد.</text>
-  <text x="100" y="220" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0f172a">با احترام - شرکت رایان سیستم</text>
-</svg>`;
+export function generateInvoicePng(): string {
+  if (typeof document === "undefined") return "";
+  const canvas = document.createElement("canvas");
+  canvas.width = 640;
+  canvas.height = 420;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
 
-// 3. Math Integral Formula Sample
-const mathIntegralSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="460" height="200" viewBox="0 0 460 200">
-  <rect width="460" height="200" fill="#ffffff" stroke="#cbd5e1" stroke-width="2" rx="8"/>
-  <text x="230" y="45" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#0f172a" text-anchor="middle">مسئله انتگرال معین مثلثاتی</text>
-  <text x="230" y="110" font-family="Times New Roman, serif" font-size="28" font-style="italic" fill="#2563eb" text-anchor="middle">I = ∫₀^(π/2)  sin(x) · cos(x) dx</text>
-  <text x="230" y="160" font-family="Arial, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">محاسبه مقدار دقیق با روش تغییر متغیر</text>
-</svg>`;
+  // White clean sheet
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, 640, 420);
 
-// 4. Circuit Diagram Sample
-const circuitSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="460" height="220" viewBox="0 0 460 220">
-  <rect width="460" height="220" fill="#ffffff" stroke="#cbd5e1" stroke-width="2" rx="8"/>
-  <text x="230" y="35" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#0f172a" text-anchor="middle">مدار الکتریکی DC (قانون اهم)</text>
-  <rect x="70" y="65" width="320" height="110" fill="none" stroke="#2563eb" stroke-width="2.5" rx="4"/>
-  <text x="60" y="125" font-family="Arial" font-size="14" font-weight="bold" fill="#059669" text-anchor="end">منبع: ۱۲ ولت</text>
-  <rect x="200" y="55" width="60" height="20" fill="#ffffff" stroke="#e11d48" stroke-width="2"/>
-  <text x="230" y="70" font-family="Arial" font-size="11" font-weight="bold" fill="#e11d48" text-anchor="middle">R = ۴ Ω</text>
-  <text x="230" y="195" font-family="Arial, sans-serif" font-size="13" fill="#334155" text-anchor="middle">محاسبه شدت جریان (I) و توان اتلافی (P)</text>
-</svg>`;
+  // Outer border
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(16, 16, 608, 388);
 
-// 5. QR Barcode Sample
-const qrSampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
-  <rect width="220" height="220" fill="#ffffff"/>
-  <rect x="20" y="20" width="50" height="50" fill="#0f172a" rx="4"/>
-  <rect x="30" y="30" width="30" height="30" fill="#ffffff"/>
-  <rect x="36" y="36" width="18" height="18" fill="#0f172a"/>
+  // Header Title
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 20px Tahoma, Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("فاکتور فروش کالا و خدمات", 320, 52);
 
-  <rect x="150" y="20" width="50" height="50" fill="#0f172a" rx="4"/>
-  <rect x="160" y="30" width="30" height="30" fill="#ffffff"/>
-  <rect x="166" y="36" width="18" height="18" fill="#0f172a"/>
+  // Metadata
+  ctx.font = "13px Tahoma, Arial, sans-serif";
+  ctx.fillStyle = "#475569";
+  ctx.textAlign = "right";
+  ctx.fillText("شماره فاکتور: ۱۴۰۳-۸۹۲", 600, 85);
+  ctx.textAlign = "left";
+  ctx.fillText("تاریخ: ۱۴۰۳/۰۸/۲۵", 32, 85);
 
-  <rect x="20" y="150" width="50" height="50" fill="#0f172a" rx="4"/>
-  <rect x="30" y="160" width="30" height="30" fill="#ffffff"/>
-  <rect x="36" y="166" width="18" height="18" fill="#0f172a"/>
+  // Table Header Bar
+  ctx.fillStyle = "#f1f5f9";
+  ctx.fillRect(24, 105, 592, 34);
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.strokeRect(24, 105, 592, 34);
 
-  <rect x="85" y="25" width="12" height="12" fill="#0f172a"/>
-  <rect x="115" y="25" width="12" height="12" fill="#0f172a"/>
-  <rect x="85" y="55" width="12" height="12" fill="#0f172a"/>
-  <rect x="85" y="85" width="12" height="12" fill="#0f172a"/>
-  <rect x="115" y="85" width="22" height="22" fill="#0f172a"/>
-  <rect x="150" y="85" width="12" height="12" fill="#0f172a"/>
-  <rect x="25" y="85" width="15" height="15" fill="#0f172a"/>
-  <rect x="55" y="115" width="15" height="15" fill="#0f172a"/>
-  <rect x="85" y="115" width="15" height="15" fill="#0f172a"/>
-  <rect x="120" y="125" width="15" height="15" fill="#0f172a"/>
-  <rect x="160" y="125" width="20" height="20" fill="#0f172a"/>
-  <rect x="85" y="155" width="15" height="15" fill="#0f172a"/>
-  <rect x="120" y="155" width="20" height="20" fill="#0f172a"/>
-  <rect x="160" y="165" width="25" height="25" fill="#0f172a"/>
-</svg>`;
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 13px Tahoma, Arial, sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText("ردیف", 595, 127);
+  ctx.fillText("شرح کالا / خدمات", 520, 127);
+  ctx.fillText("تعداد", 280, 127);
+  ctx.fillText("مبلغ واحد (تومان)", 180, 127);
+  ctx.fillText("مبلغ کل (تومان)", 85, 127);
 
-function svgToBase64(svg: string): string {
-  if (typeof window !== "undefined") {
-    return btoa(unescape(encodeURIComponent(svg)));
+  // Table Row 1
+  ctx.font = "13px Tahoma, Arial, sans-serif";
+  ctx.fillStyle = "#334155";
+  ctx.fillText("۱", 595, 162);
+  ctx.fillText("وب‌کم کنفرانس ۴K Ultra HD", 520, 162);
+  ctx.fillText("۱", 280, 162);
+  ctx.fillText("۱۲,۵۰۰,۰۰۰", 180, 162);
+  ctx.fillText("۱۲,۵۰۰,۰۰۰", 85, 162);
+
+  // Table Row 2
+  ctx.fillText("۲", 595, 202);
+  ctx.fillText("میکروفون بی‌سیم یقه‌ای حرفه‌ای", 520, 202);
+  ctx.fillText("۲", 280, 202);
+  ctx.fillText("۴,۲۰۰,۰۰۰", 180, 202);
+  ctx.fillText("۸,۴۰۰,۰۰۰", 85, 202);
+
+  // Table Row 3
+  ctx.fillText("۳", 595, 242);
+  ctx.fillText("کابل اتصال پرسرعت Thunderbolt", 520, 242);
+  ctx.fillText("۱", 280, 242);
+  ctx.fillText("۱,۱۰۰,۰۰۰", 180, 242);
+  ctx.fillText("۱,۱۰۰,۰۰۰", 85, 242);
+
+  // Table Horizontal Dividers
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.beginPath();
+  ctx.moveTo(24, 180);
+  ctx.lineTo(616, 180);
+  ctx.moveTo(24, 220);
+  ctx.lineTo(616, 220);
+  ctx.moveTo(24, 260);
+  ctx.lineTo(616, 260);
+  ctx.stroke();
+
+  // Summary Box
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillRect(24, 275, 592, 48);
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.strokeRect(24, 275, 592, 48);
+
+  ctx.font = "bold 15px Tahoma, Arial, sans-serif";
+  ctx.fillStyle = "#0f172a";
+  ctx.fillText("جمع کل فاکتور: ۲۲,۰۰۰,۰۰۰ تومان", 580, 305);
+
+  // Green Paid Stamp
+  ctx.strokeStyle = "#059669";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(40, 345, 130, 38);
+  ctx.fillStyle = "#059669";
+  ctx.font = "bold 14px Tahoma, Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("وضعیت: پرداخت شد", 105, 369);
+
+  return canvas.toDataURL("image/png");
+}
+
+export function generateHandwritingPng(): string {
+  if (typeof document === "undefined") return "";
+  const canvas = document.createElement("canvas");
+  canvas.width = 640;
+  canvas.height = 420;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+
+  // Soft cream paper background
+  ctx.fillStyle = "#fdfbf7";
+  ctx.fillRect(0, 0, 640, 420);
+
+  // Blue notebook lines
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.lineWidth = 1;
+  for (let y = 80; y <= 380; y += 38) {
+    ctx.beginPath();
+    ctx.moveTo(30, y);
+    ctx.lineTo(610, y);
+    ctx.stroke();
   }
-  return Buffer.from(svg).toString("base64");
+
+  // Margin line
+  ctx.strokeStyle = "#fecdd3";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(590, 20);
+  ctx.lineTo(590, 400);
+  ctx.stroke();
+
+  // Letter contents
+  ctx.fillStyle = "#1e293b";
+  ctx.textAlign = "center";
+  ctx.font = "italic 16px Tahoma, Arial, sans-serif";
+  ctx.fillText("بسمه تعالی", 320, 50);
+
+  ctx.textAlign = "right";
+  ctx.font = "14px Tahoma, Arial, sans-serif";
+  ctx.fillText("تاریخ: ۱۴۰۳/۰۸/۲۵", 570, 75);
+  ctx.fillText("شماره: ۳۸۲/ف", 570, 112);
+
+  ctx.font = "bold 14px Tahoma, Arial, sans-serif";
+  ctx.fillText("جناب آقای مهندس رضایی، مدیریت محترم غرفه فناوری", 570, 150);
+
+  ctx.font = "14px Tahoma, Arial, sans-serif";
+  ctx.fillText("موضوع: اعلام آمادگی همکاری در زمینه هوش مصنوعی", 570, 188);
+  ctx.fillText("احتراماً عطف به مذاکرات اخیر در نمایشگاه، بدین‌وسیله آمادگی", 570, 226);
+  ctx.fillText("کامل این شرکت جهت پیاده‌سازی زیرساخت‌های هوش مصنوعی سازمانی اعلام می‌گردد.", 570, 264);
+
+  ctx.font = "bold 14px Tahoma, Arial, sans-serif";
+  ctx.fillText("با احترام و تشکر - شرکت رایان سیستم", 360, 340);
+
+  return canvas.toDataURL("image/png");
 }
 
-export const INVOICE_BASE64 = svgToBase64(invoiceSvg);
-export const HANDWRITING_BASE64 = svgToBase64(handwritingSvg);
-export const MATH_INTEGRAL_BASE64 = svgToBase64(mathIntegralSvg);
-export const CIRCUIT_BASE64 = svgToBase64(circuitSvg);
-export const QR_SAMPLE_BASE64 = svgToBase64(qrSampleSvg);
+export function generateMathIntegralPng(): string {
+  if (typeof document === "undefined") return "";
+  const canvas = document.createElement("canvas");
+  canvas.width = 640;
+  canvas.height = 360;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, 640, 360);
+
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(16, 16, 608, 328);
+
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 18px Tahoma, Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("مسئله ریاضی: انتگرال معین مثلثاتی", 320, 55);
+
+  ctx.fillStyle = "#475569";
+  ctx.font = "14px Tahoma, Arial, sans-serif";
+  ctx.fillText("مقدار دقیق انتگرال معین زیر را با ذکر مراحل تغییر متغیر محاسبه فرمایید:", 320, 95);
+
+  // Big Formula
+  ctx.fillStyle = "#2563eb";
+  ctx.font = "bold 32px 'Times New Roman', serif";
+  ctx.fillText("I = ∫₀^(π/2)  sin(x) · cos(x) dx", 320, 175);
+
+  // Hint Box
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillRect(60, 230, 520, 80);
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(60, 230, 520, 80);
+
+  ctx.fillStyle = "#334155";
+  ctx.font = "14px Tahoma, Arial, sans-serif";
+  ctx.fillText("راهنما: از تغییر متغیر u = sin(x) یا اتحاد sin(2x) = 2 sin(x) cos(x) استفاده شود.", 320, 275);
+
+  return canvas.toDataURL("image/png");
+}
+
+export function generateCircuitPng(): string {
+  if (typeof document === "undefined") return "";
+  const canvas = document.createElement("canvas");
+  canvas.width = 640;
+  canvas.height = 360;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, 640, 360);
+
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(16, 16, 608, 328);
+
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 18px Tahoma, Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("مسئله فیزیک: تحلیل مدار الکتریکی DC", 320, 50);
+
+  // Circuit Wire
+  ctx.strokeStyle = "#2563eb";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(120, 110);
+  ctx.lineTo(520, 110);
+  ctx.lineTo(520, 230);
+  ctx.lineTo(120, 230);
+  ctx.closePath();
+  ctx.stroke();
+
+  // DC Voltage Source
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(100, 150, 40, 40);
+  ctx.strokeStyle = "#059669";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(105, 160);
+  ctx.lineTo(135, 160);
+  ctx.moveTo(112, 180);
+  ctx.lineTo(128, 180);
+  ctx.stroke();
+  ctx.fillStyle = "#059669";
+  ctx.font = "bold 15px Tahoma, Arial, sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText("V = ۱۲V", 95, 175);
+
+  // Resistor
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(270, 95, 100, 30);
+  ctx.strokeStyle = "#e11d48";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(270, 95, 100, 30);
+  ctx.fillStyle = "#e11d48";
+  ctx.font = "bold 14px Tahoma, Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("R = ۴ Ω", 320, 116);
+
+  // Questions
+  ctx.fillStyle = "#1e293b";
+  ctx.font = "bold 14px Tahoma, Arial, sans-serif";
+  ctx.fillText("مطلوب است: ۱) محاسبه شدت جریان (I)  |  ۲) محاسبه توان اتلافی (P)", 320, 290);
+
+  return canvas.toDataURL("image/png");
+}
+
+export function generateQrSamplePng(): string {
+  if (typeof document === "undefined") return "";
+  const canvas = document.createElement("canvas");
+  canvas.width = 400;
+  canvas.height = 400;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, 400, 400);
+
+  const drawFinder = (x: number, y: number) => {
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(x, y, 70, 70);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(x + 10, y + 10, 50, 50);
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(x + 20, y + 20, 30, 30);
+  };
+
+  drawFinder(40, 40);
+  drawFinder(290, 40);
+  drawFinder(40, 290);
+
+  // Random pixel blocks
+  ctx.fillStyle = "#0f172a";
+  const seed = [
+    [130, 40, 20, 20], [170, 40, 40, 20], [230, 40, 30, 20],
+    [130, 80, 40, 20], [190, 80, 20, 20], [230, 80, 40, 20],
+    [40, 130, 20, 40], [80, 130, 20, 20], [130, 130, 50, 50],
+    [210, 130, 30, 20], [270, 130, 40, 40], [330, 130, 30, 30],
+    [40, 190, 30, 20], [100, 190, 20, 40], [150, 200, 30, 30],
+    [200, 190, 40, 20], [260, 200, 30, 40], [320, 190, 40, 20],
+    [130, 270, 40, 30], [190, 270, 30, 20], [240, 270, 40, 40],
+    [130, 320, 20, 40], [170, 330, 40, 20], [230, 330, 30, 30],
+    [290, 310, 30, 40], [340, 320, 20, 30]
+  ];
+
+  for (const [bx, by, bw, bh] of seed) {
+    ctx.fillRect(bx, by, bw, bh);
+  }
+
+  return canvas.toDataURL("image/png");
+}
+
+// -------------------------------------------------------------
+// DEMO PRESETS DEFINITION
+// -------------------------------------------------------------
 
 export const ALL_DEMO_PRESETS: Record<"ocr" | "pdf_chat" | "qr" | "math" | "url", DemoPreset[]> = {
   ocr: [
@@ -107,19 +338,19 @@ export const ALL_DEMO_PRESETS: Record<"ocr" | "pdf_chat" | "qr" | "math" | "url"
       label: "🧾 فاکتور رسمی",
       icon: "🧾",
       tool: "ocr",
-      fileName: "فاکتور_تجهیزات.png",
-      fileBase64: INVOICE_BASE64,
-      mimeType: "image/svg+xml",
-      textInput: "استخراج اقلام، قیمت‌ها و جمع کل فاکتور در جدول مرتب",
+      fileName: "فاکتور_فروش.png",
+      mimeType: "image/png",
+      getCanvasImage: generateInvoicePng,
+      textInput: "فاکتور فروش کالا و خدمات\nشماره: ۱۴۰۳-۸۹۲ | تاریخ: ۱۴۰۳/۰۸/۲۵\n۱. وب‌کم کنفرانس ۴K: ۱۲,۵۰۰,۰۰۰ تومان\n۲. میکروفون بی‌سیم: ۸,۴۰۰,۰۰۰ تومان\n۳. کابل رابط پرسرعت: ۱,۱۰۰,۰۰۰ تومان\nجمع کل: ۲۲,۰۰۰,۰۰۰ تومان\nوضعیت: پرداخت شد",
     },
     {
       label: "📝 نامه اداری",
       icon: "📝",
       tool: "ocr",
       fileName: "نامه_اداری.png",
-      fileBase64: HANDWRITING_BASE64,
-      mimeType: "image/svg+xml",
-      textInput: "استخراج دقیق متن نامه، تاریخ و فرستنده",
+      mimeType: "image/png",
+      getCanvasImage: generateHandwritingPng,
+      textInput: "بسمه تعالی\nتاریخ: ۱۴۰۳/۰۸/۲۵ | شماره: ۳۸۲/ف\nجناب آقای مهندس رضایی، مدیریت محترم غرفه فناوری\nموضوع: اعلام آمادگی همکاری در زمینه هوش مصنوعی\nاحتراماً عطف به مذاکرات اخیر در نمایشگاه، بدین‌وسیله آمادگی کامل جهت پیاده‌سازی سامانه‌های هوشمند اعلام می‌گردد.\nبا احترام - شرکت رایان سیستم",
     },
   ],
   math: [
@@ -127,19 +358,19 @@ export const ALL_DEMO_PRESETS: Record<"ocr" | "pdf_chat" | "qr" | "math" | "url"
       label: "📐 انتگرال معین",
       icon: "📐",
       tool: "math",
-      fileName: "فرمول_انتگرال.png",
-      fileBase64: MATH_INTEGRAL_BASE64,
-      mimeType: "image/svg+xml",
-      textInput: "حل تشریحی انتگرال معین با ذکر مراحل تغییر متغیر",
+      fileName: "انتگرال_مثلثاتی.png",
+      mimeType: "image/png",
+      getCanvasImage: generateMathIntegralPng,
+      textInput: "مسئله: محاسبه مقدار دقیق انتگرال معین مثلثاتی زیر با روش تغییر متغیر:\nI = ∫₀^(π/2) sin(x) · cos(x) dx",
     },
     {
       label: "⚡ مدار الکتریکی",
       icon: "⚡",
       tool: "math",
-      fileName: "مدار_الکتریکی.png",
-      fileBase64: CIRCUIT_BASE64,
-      mimeType: "image/svg+xml",
-      textInput: "محاسبه جریان مدار و توان مصرفی مقاومت با فرمول",
+      fileName: "مدار_الکتریکی_DC.png",
+      mimeType: "image/png",
+      getCanvasImage: generateCircuitPng,
+      textInput: "مسئله مدار الکتریکی DC با ولتاژ منبع ۱۲ ولت و مقاومت ۴ اهم. مطلوب است: ۱) شدت جریان مدار ۲) توان اتلافی مقاومت.",
     },
   ],
   pdf_chat: [
@@ -180,9 +411,9 @@ export const ALL_DEMO_PRESETS: Record<"ocr" | "pdf_chat" | "qr" | "math" | "url"
       icon: "📱",
       tool: "qr",
       fileName: "بارکد_نمونه.png",
-      fileBase64: QR_SAMPLE_BASE64,
-      mimeType: "image/svg+xml",
-      textInput: "تحلیل سلامت لینک و محتوای بارکد",
+      mimeType: "image/png",
+      getCanvasImage: generateQrSamplePng,
+      textInput: "کد QR وبسایت هوش مصنوعی: https://achar.ai",
     },
     {
       label: "📶 تولید QR وای‌فای",

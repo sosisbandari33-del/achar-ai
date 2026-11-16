@@ -138,7 +138,7 @@ const STORAGE_ADMIN_PIN = "achar_admin_pin";
 const STORAGE_HISTORY = "achar_history_v1";
 
 const DEFAULT_PIN = "1234";
-const DEFAULT_MODEL = "gemini-3.5-flash";
+const DEFAULT_MODEL = "gemini-3.1-flash-lite";
 
 // Simple Markdown Renderer for Apple Minimalist Output
 function FormattedOutput({ content, isStreaming }: { content: string; isStreaming?: boolean }) {
@@ -293,7 +293,12 @@ export default function AcharAIPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedKey = localStorage.getItem(STORAGE_API_KEY) || "";
-      const savedModel = localStorage.getItem(STORAGE_MODEL_KEY) || DEFAULT_MODEL;
+      let savedModel = localStorage.getItem(STORAGE_MODEL_KEY) || DEFAULT_MODEL;
+      // Upgrade from slow/throttled 3.5-flash to ultra-fast 3.1-flash-lite
+      if (savedModel === "gemini-3.5-flash") {
+        savedModel = DEFAULT_MODEL;
+        localStorage.setItem(STORAGE_MODEL_KEY, DEFAULT_MODEL);
+      }
       const savedPin = localStorage.getItem(STORAGE_ADMIN_PIN) || DEFAULT_PIN;
       setStoredApiKey(savedKey);
       setCustomKeyInput(savedKey);
@@ -591,17 +596,35 @@ export default function AcharAIPage() {
     }
   };
 
-  // ITEM 2: Apply Instant Demo Preset (اعمال نمونه‌های آماده تست سریع با تصویر و داده واقعی)
+  // ITEM 2: Apply Instant Demo Preset (اعمال نمونه‌های آماده با رندر Canvas واقعی و بدون خطا)
   const handleApplyPreset = (preset: DemoPreset) => {
     setErrorMessage(null);
     stopSpeech();
 
+    let resolvedBase64: string | null = preset.fileBase64 || null;
+    let resolvedMime = preset.mimeType || "image/png";
+    let previewUrl: string | null = preset.filePreview || null;
+
+    // Generate real PNG directly from browser canvas to guarantee 100% Persian font readability
+    if (preset.getCanvasImage && typeof window !== "undefined") {
+      try {
+        const canvasDataUrl = preset.getCanvasImage();
+        if (canvasDataUrl && canvasDataUrl.startsWith("data:image/png")) {
+          previewUrl = canvasDataUrl;
+          resolvedBase64 = canvasDataUrl.split(",")[1];
+          resolvedMime = "image/png";
+        }
+      } catch (err) {
+        console.warn("Canvas generation error", err);
+      }
+    }
+
     // 1. Visually and logically attach file/image so user sees it in dropzone
-    if (preset.fileBase64) {
-      setFileBase64(preset.fileBase64);
-      setMimeType(preset.mimeType || "image/svg+xml");
-      setFilePreview(`data:${preset.mimeType || "image/svg+xml"};base64,${preset.fileBase64}`);
-      setFile({ name: preset.fileName || "سند_نمونه.png", size: 38400 } as any);
+    if (resolvedBase64) {
+      setFileBase64(resolvedBase64);
+      setMimeType(resolvedMime);
+      setFilePreview(previewUrl || `data:${resolvedMime};base64,${resolvedBase64}`);
+      setFile({ name: preset.fileName || "سند_نمونه.png", size: 48000 } as any);
     } else if (preset.isPdfMock) {
       setFile({ name: preset.fileName || "قرارداد_نمونه.pdf", size: 84200 } as any);
       setFilePreview(null);
@@ -625,7 +648,7 @@ export default function AcharAIPage() {
     }
 
     if (activeTool === "qr") {
-      if (preset.fileBase64) {
+      if (resolvedBase64) {
         setQrMode("scan");
       } else {
         setQrMode("generate");
@@ -638,8 +661,8 @@ export default function AcharAIPage() {
       handleAnalyzeWithCustomData({
         url: preset.url || "",
         textInput: preset.textInput || "",
-        fileBase64: preset.fileBase64 || null,
-        mimeType: preset.mimeType || "image/svg+xml",
+        fileBase64: resolvedBase64,
+        mimeType: resolvedMime,
         label: preset.label,
       });
     }, 120);
@@ -1827,8 +1850,8 @@ export default function AcharAIPage() {
                         onChange={(e) => setTempModel(e.target.value)}
                         className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 text-left font-mono"
                       >
-                        <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (سریع و بهینه - توصیه شده)</option>
-                        <option value="gemini-3.5-flash">gemini-3.5-flash (پیش‌فرض)</option>
+                        <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (پیش‌فرض - فوق‌العاده سریع و پایدار)</option>
+                        <option value="gemini-3.5-flash">gemini-3.5-flash (استاندارد)</option>
                         <option value="gemini-3.8-flash">gemini-3.8-flash (استدلال پیشرفته)</option>
                       </select>
                     </div>

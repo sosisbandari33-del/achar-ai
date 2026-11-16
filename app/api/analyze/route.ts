@@ -247,9 +247,12 @@ export async function POST(req: NextRequest) {
       case "ocr":
         if (fileBase64) {
           specificToolInstruction =
-            "Analyze the attached image and extract all text with extreme precision. Preserve original formatting, headings, bullet points, and tables. Fix minor typographical scan artifacts. Output ONLY the extracted text.";
+            "Analyze the attached document or image and extract all text with extreme precision in professional Persian. Transcribe all headings, body text, tables, dates, numbers, and monetary figures accurately. If tabular data exists, format it into a clean Markdown table. Fix any minor scanning noise. Output the extracted text neatly.";
+          if (customPrompt || textInput) {
+            specificToolInstruction += `\nنکات و راهنمای تکمیلی کاربر: ${customPrompt || textInput}`;
+          }
         } else {
-          specificToolInstruction = `Extract, correct any typographical errors, format into structured sections or tables, and output the polished extracted text in professional Persian based on the following document data:\n\n"""\n${
+          specificToolInstruction = `Extract, format into structured sections or tables, and output the polished extracted text in professional Persian based on the following document data:\n\n"""\n${
             customPrompt || textInput
           }\n"""`;
         }
@@ -324,7 +327,7 @@ export async function POST(req: NextRequest) {
     const contentParts: any[] = [specificToolInstruction];
 
     if (fileBase64) {
-      let resolvedMime = rawMimeType || "image/jpeg";
+      let resolvedMime = rawMimeType || "image/png";
 
       const match = fileBase64.match(/^data:([^;]+);base64,/);
       if (match && match[1]) {
@@ -332,6 +335,24 @@ export async function POST(req: NextRequest) {
       }
 
       const cleanBase64 = fileBase64.replace(/^data:[^;]+;base64,/, "").trim();
+
+      // Dual defense: If an SVG file is passed, extract literal text strings from its XML tags
+      // so Gemini backend never chokes on missing server fonts
+      if (resolvedMime.includes("svg")) {
+        try {
+          const decoded = Buffer.from(cleanBase64, "base64").toString("utf-8");
+          const texts = decoded.match(/<text[^>]*>([^<]+)<\/text>/gi);
+          if (texts && texts.length > 0) {
+            const extracted = texts
+              .map((t) => t.replace(/<[^>]+>/g, "").trim())
+              .filter(Boolean)
+              .join("\n");
+            contentParts[0] += `\n\n[محتوای متنی استخراج‌شده از سند]:\n"""\n${extracted}\n"""`;
+          }
+        } catch {
+          // ignore parsing error
+        }
+      }
 
       contentParts.push({
         inlineData: {
@@ -341,10 +362,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 7. Multi-Model Cascade Execution (Resilience)
-    const modelCandidates = requestedModel
-      ? [requestedModel, ...CANDIDATE_MODELS.filter((m) => m !== requestedModel)]
-      : CANDIDATE_MODELS;
+    // 7. Multi-Model Cascade Execution (Ultra-Fast 3.1-flash-lite prioritized)
+    const modelCandidates = [
+      "gemini-3.1-flash-lite",
+      "gemini-3.1-flash-lite-preview",
+      ...(requestedModel && requestedModel !== "gemini-3.1-flash-lite" ? [requestedModel] : []),
+      "gemini-3.5-flash",
+      "gemini-3.8-flash",
+    ].filter((v, i, a) => a.indexOf(v) === i);
 
     // Handle Streaming Response (Live Typewriter Effect)
     if (shouldStream) {
