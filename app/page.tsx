@@ -39,12 +39,17 @@ import {
   Smartphone,
   Zap,
   MessageSquareText,
+  Link2,
+  ExternalLink,
+  Scissors,
+  MousePointerClick,
+  BarChart3,
 } from "lucide-react";
 
 // ==========================================
 // Types & Constants
 // ==========================================
-type ToolId = "ocr" | "pdf_chat" | "qr" | "math" | "url" | "chat";
+type ToolId = "ocr" | "pdf_chat" | "qr" | "math" | "url" | "chat" | "shortener";
 
 interface ToolItem {
   id: ToolId;
@@ -137,6 +142,17 @@ const TOOLS: ToolItem[] = [
     tag: "Guide",
     dropzoneTitle: "گفت‌وگو با دستیار راهنما",
     dropzoneSubtitle: "پرسش و راهنمایی مستقیم درباره امکانات جعبه‌ابزار",
+    accept: "",
+  },
+  {
+    id: "shortener",
+    name: "URL Shortener",
+    subtitle: "کوتاه‌کننده لینک",
+    description: "کوتاه‌سازی سریع پیوندها با نام مستعار هوشمند، بارکد QR و آمار کلیک.",
+    icon: Link2,
+    tag: "Utility",
+    dropzoneTitle: "نشانی وب را برای کوتاه‌سازی وارد کنید",
+    dropzoneSubtitle: "تبدیل لینک‌های طولانی به پیوندهای کوتاه، شیک و قابل رهگیری",
     accept: "",
   },
 ];
@@ -273,6 +289,22 @@ export default function AcharAIPage() {
   const [qrContent, setQrContent] = useState<string>("https://achar.ai");
   const [qrColor, setQrColor] = useState<string>("0f172a");
 
+  // URL Shortener State
+  const [shortenerUrl, setShortenerUrl] = useState<string>("");
+  const [shortenerCustomSlug, setShortenerCustomSlug] = useState<string>("");
+  const [shortenerCreatedLink, setShortenerCreatedLink] = useState<{
+    code: string;
+    originalUrl: string;
+    title?: string;
+    description?: string;
+    clicks: number;
+    shortUrl: string;
+  } | null>(null);
+  const [shortenerRecentLinks, setShortenerRecentLinks] = useState<any[]>([]);
+  const [isShortening, setIsShortening] = useState<boolean>(false);
+  const [isAiSlugLoading, setIsAiSlugLoading] = useState<boolean>(false);
+  const [copiedShortUrl, setCopiedShortUrl] = useState<string | null>(null);
+
   // Output & Execution State
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
@@ -326,6 +358,8 @@ export default function AcharAIPage() {
       } catch (err) {
         console.warn("Could not read history", err);
       }
+
+      fetchShortLinks();
     }
   }, []);
 
@@ -351,6 +385,9 @@ export default function AcharAIPage() {
     setErrorMessage(null);
     stopSpeech();
     setIsStreaming(false);
+    if (toolId === "shortener") {
+      fetchShortLinks();
+    }
   };
 
   // Convert uploaded File to Base64 data
@@ -588,6 +625,8 @@ export default function AcharAIPage() {
         if (transcript) {
           if (activeTool === "url") {
             setUrlInput(transcript);
+          } else if (activeTool === "shortener") {
+            setShortenerUrl(transcript);
           } else {
             setTextInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
           }
@@ -668,6 +707,17 @@ export default function AcharAIPage() {
       }
     }
 
+    if (activeTool === "shortener") {
+      const targetUrl = preset.url || "";
+      const targetSlug = preset.textInput || "";
+      setShortenerUrl(targetUrl);
+      setShortenerCustomSlug(targetSlug);
+      setTimeout(() => {
+        handleCreateShortLink(targetUrl, targetSlug);
+      }, 100);
+      return;
+    }
+
     // 2. Execute analysis immediately with full data
     setTimeout(() => {
       handleAnalyzeWithCustomData({
@@ -698,6 +748,160 @@ export default function AcharAIPage() {
     }
   };
 
+  // URL Shortener Handlers
+  const fetchShortLinks = async () => {
+    try {
+      const res = await fetch("/api/shorten");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.links)) {
+        setShortenerRecentLinks(data.links);
+      }
+    } catch (err) {
+      console.warn("Could not fetch short links", err);
+    }
+  };
+
+  const handleCreateShortLink = async (overrideUrl?: string, overrideSlug?: string) => {
+    const targetUrl = (overrideUrl !== undefined ? overrideUrl : shortenerUrl).trim();
+    const targetSlug = (overrideSlug !== undefined ? overrideSlug : shortenerCustomSlug).trim();
+
+    if (!targetUrl) {
+      setErrorMessage("لطفاً نشانی اینترنتی (URL) را وارد کنید.");
+      return;
+    }
+
+    setIsShortening(true);
+    setErrorMessage(null);
+
+    try {
+      const clientKey = typeof window !== "undefined" ? localStorage.getItem(STORAGE_API_KEY) || "" : "";
+      const modelToUse = typeof window !== "undefined" ? localStorage.getItem(STORAGE_MODEL_KEY) || DEFAULT_MODEL : DEFAULT_MODEL;
+
+      const res = await fetch("/api/shorten", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: targetUrl,
+          customSlug: targetSlug || undefined,
+          aiSlug: !targetSlug,
+          generateAiMeta: true,
+          apiKey: clientKey,
+          model: modelToUse,
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "خطا در ساخت پیوند کوتاه");
+      }
+
+      const host = typeof window !== "undefined" ? window.location.host : "localhost:3000";
+      const proto = typeof window !== "undefined" ? window.location.protocol : "http:";
+      const fullShortUrl = `${proto}//${host}/s/${data.link.code}`;
+
+      const created = {
+        code: data.link.code,
+        originalUrl: data.link.originalUrl,
+        title: data.link.title,
+        description: data.link.description,
+        clicks: data.link.clicks || 0,
+        shortUrl: fullShortUrl,
+      };
+
+      setShortenerCreatedLink(created);
+      fetchShortLinks();
+
+      const summaryText = `پیوند با موفقیت کوتاه‌سازی شد.\n\n🔗 پیوند کوتاه: ${fullShortUrl}\n🌐 پیوند اصلی: ${data.link.originalUrl}${data.link.title ? `\n📌 عنوان: ${data.link.title}` : ""}${data.link.description ? `\n📝 توضیح: ${data.link.description}` : ""}\n\nجهت کپی یا اسکن کد QR از بخش زیر استفاده کنید.`;
+      setResponseOutput(summaryText);
+      setUsedModelBadge("URL Shortener");
+      setDurationMsBadge(120);
+
+      saveToHistory({
+        id: String(Date.now()),
+        tool: "shortener",
+        toolName: "URL Shortener",
+        timestamp: Date.now(),
+        previewInput: targetUrl,
+        result: summaryText,
+        durationMs: 120,
+        modelUsed: "ACHAR Shortener",
+      });
+    } catch (err: any) {
+      setErrorMessage(err.message || "خطا در ساخت پیوند کوتاه.");
+    } finally {
+      setIsShortening(false);
+    }
+  };
+
+  const handleGenerateAiSlug = async () => {
+    const targetUrl = shortenerUrl.trim();
+    if (!targetUrl) {
+      setErrorMessage("لطفاً ابتدا نشانی وب را وارد کنید تا نام مستعار هوشمند تولید شود.");
+      return;
+    }
+
+    setIsAiSlugLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const clientKey = typeof window !== "undefined" ? localStorage.getItem(STORAGE_API_KEY) || "" : "";
+      const modelToUse = typeof window !== "undefined" ? localStorage.getItem(STORAGE_MODEL_KEY) || DEFAULT_MODEL : DEFAULT_MODEL;
+
+      const res = await fetch("/api/shorten", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: targetUrl,
+          aiSlug: true,
+          generateAiMeta: true,
+          apiKey: clientKey,
+          model: modelToUse,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.link) {
+        setShortenerCustomSlug(data.link.code);
+        const host = typeof window !== "undefined" ? window.location.host : "localhost:3000";
+        const proto = typeof window !== "undefined" ? window.location.protocol : "http:";
+        setShortenerCreatedLink({
+          ...data.link,
+          shortUrl: `${proto}//${host}/s/${data.link.code}`,
+        });
+        fetchShortLinks();
+      }
+    } catch (err: any) {
+      setErrorMessage("خطا در ایجاد نام مستعار هوشمند.");
+    } finally {
+      setIsAiSlugLoading(false);
+    }
+  };
+
+  const handleDeleteShortLink = async (code: string) => {
+    try {
+      const res = await fetch(`/api/shorten?code=${encodeURIComponent(code)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (shortenerCreatedLink?.code === code) {
+          setShortenerCreatedLink(null);
+        }
+        fetchShortLinks();
+      }
+    } catch (err) {
+      console.warn("Could not delete short link", err);
+    }
+  };
+
+  const handleCopyShortUrl = (url: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(url);
+      setCopiedShortUrl(url);
+      setTimeout(() => setCopiedShortUrl(null), 2000);
+    }
+  };
+
   // ITEM 1: Live Typewriter Streaming Execution
   const handleAnalyzeWithCustomData = async (customOverrides?: {
     url?: string;
@@ -724,7 +928,7 @@ export default function AcharAIPage() {
       return;
     }
 
-    if (activeTool !== "url" && activeTool !== "qr" && activeTool !== "chat" && !currentBase64 && !currentText.trim()) {
+    if (activeTool !== "url" && activeTool !== "qr" && activeTool !== "chat" && activeTool !== "shortener" && !currentBase64 && !currentText.trim()) {
       setErrorMessage("لطفاً فایلی بارگذاری کنید یا متنی بنویسید.");
       return;
     }
@@ -964,16 +1168,16 @@ export default function AcharAIPage() {
             ابزارهای هوشمند، ساده و بی‌نقص
           </h1>
           <p className="max-w-xl mx-auto text-sm sm:text-base text-slate-500 leading-relaxed">
-            پردازش اسناد، تصاویر، کد QR، معادلات و گفت‌وگو با دستیار راهنما با استریمینگ لحظه‌ای.
+            پردازش اسناد، تصاویر، کد QR، کوتاه‌سازی لینک، معادلات و گفت‌وگو با دستیار راهنما با استریمینگ لحظه‌ای.
           </p>
         </motion.div>
       </section>
 
       {/* ============================================================
-          3. Tools Grid (6 Selectable Tools)
+          3. Tools Grid (7 Selectable Tools)
       ============================================================ */}
-      <section className="max-w-5xl mx-auto px-6 py-4 w-full">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
+      <section className="max-w-6xl mx-auto px-6 py-4 w-full">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-3">
           {TOOLS.map((tool) => {
             const Icon = tool.icon;
             const isSelected = activeTool === tool.id;
@@ -1252,6 +1456,7 @@ export default function AcharAIPage() {
                     { id: "qr", label: "بارکد و کد QR", icon: QrCode },
                     { id: "math", label: "حل ریاضی و فیزیک", icon: Calculator },
                     { id: "url", label: "خلاصه‌ساز وب", icon: Globe },
+                    { id: "shortener", label: "کوتاه‌کننده لینک", icon: Link2 },
                   ].map((t) => {
                     const TIcon = t.icon;
                     return (
@@ -1268,6 +1473,281 @@ export default function AcharAIPage() {
                   })}
                 </div>
               </div>
+            </div>
+          ) : activeTool === "shortener" ? (
+            /* E. URL Shortener View with AI Smart Slug & QR Code */
+            <div className="space-y-5 text-right" dir="rtl">
+              {/* Long URL Input with Paste & Voice Input */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700 block">
+                    نشانی اینترنتی اصلی (URL):
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          if (navigator.clipboard) {
+                            const text = await navigator.clipboard.readText();
+                            if (text) setShortenerUrl(text.trim());
+                          }
+                        } catch {
+                          // Clipboard permission not granted
+                        }
+                      }}
+                      className="text-xs font-medium px-2.5 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                      title="جای‌گذاری از کلیپ‌بورد"
+                    >
+                      جای‌گذاری
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleToggleVoiceInput}
+                      className={`text-xs font-medium flex items-center gap-1 px-2.5 py-0.5 rounded-lg border transition-all ${
+                        isListeningVoice
+                          ? "bg-rose-50 text-rose-600 border-rose-300 animate-pulse"
+                          : "bg-slate-100 hover:bg-slate-200 text-slate-600 border-transparent"
+                      }`}
+                      title="ورودی صوتی فارسی"
+                    >
+                      {isListeningVoice ? <MicOff className="w-3 h-3 text-rose-600" /> : <Mic className="w-3 h-3 text-blue-600" />}
+                      <span>{isListeningVoice ? "در حال ضبط..." : "صدا"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <Link2 className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="url"
+                    value={shortenerUrl}
+                    onChange={(e) => setShortenerUrl(e.target.value)}
+                    placeholder="https://example.com/very/long/article/path..."
+                    className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all text-left"
+                  />
+                  {shortenerUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setShortenerUrl("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Custom Slug / Alias Input with AI Generator */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700 block">
+                    نام مستعار دلخواه (اختیاری):
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateAiSlug}
+                    disabled={isAiSlugLoading || !shortenerUrl.trim()}
+                    className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/60 transition-colors disabled:opacity-50"
+                  >
+                    {isAiSlugLoading ? (
+                      <RefreshCw className="w-3 h-3 animate-spin text-blue-600" />
+                    ) : (
+                      <Sparkles className="w-3 h-3 text-blue-600" />
+                    )}
+                    <span>{isAiSlugLoading ? "تولید نام هوشمند..." : "نام مستعار هوشمند AI"}</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center rounded-2xl bg-slate-50 border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-blue-600/20 focus-within:border-blue-600 transition-all" dir="ltr">
+                  <span className="px-3.5 py-3 text-xs font-mono text-slate-400 bg-slate-100/70 border-r border-slate-200 select-none">
+                    /s/
+                  </span>
+                  <input
+                    type="text"
+                    value={shortenerCustomSlug}
+                    onChange={(e) => setShortenerCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
+                    placeholder="my-link (یا خالی بگذارید)"
+                    className="w-full px-3 py-3 text-sm text-slate-900 bg-transparent focus:outline-none font-mono"
+                  />
+                  {shortenerCustomSlug && (
+                    <button
+                      type="button"
+                      onClick={() => setShortenerCustomSlug("")}
+                      className="px-3 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  می‌توانید کلمه دلخواه بنویسید یا دکمه هوشمند را بزنید تا هوش مصنوعی نام کوتاه انگلیسی بسازد.
+                </p>
+              </div>
+
+              {/* Created Short Link Showcase Card */}
+              {shortenerCreatedLink && (
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-50/70 to-slate-50 border border-blue-200/80 shadow-xs space-y-3 mt-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      پیوند کوتاه شما آماده است:
+                    </span>
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                      کد: {shortenerCreatedLink.code}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-white border border-slate-200" dir="ltr">
+                    <span className="font-mono text-sm sm:text-base font-bold text-blue-600 select-all truncate">
+                      {shortenerCreatedLink.shortUrl}
+                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0" dir="rtl">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyShortUrl(shortenerCreatedLink.shortUrl)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                          copiedShortUrl === shortenerCreatedLink.shortUrl
+                            ? "bg-emerald-600 text-white"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                        }`}
+                      >
+                        {copiedShortUrl === shortenerCreatedLink.shortUrl ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>کپی</span>
+                          </>
+                        )}
+                      </button>
+
+                      <a
+                        href={shortenerCreatedLink.shortUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>تست لینک</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* QR Code and Metadata */}
+                  <div className="flex flex-col sm:flex-row items-center gap-4 pt-2 border-t border-blue-100/60">
+                    <div className="p-2 bg-white rounded-xl border border-slate-200 shadow-2xs shrink-0">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&color=0f172a&data=${encodeURIComponent(
+                          shortenerCreatedLink.shortUrl
+                        )}`}
+                        alt="QR Code"
+                        className="w-20 h-20 rounded-md"
+                      />
+                    </div>
+                    <div className="space-y-1 text-right w-full">
+                      {shortenerCreatedLink.title && (
+                        <p className="text-xs font-bold text-slate-800">
+                          {shortenerCreatedLink.title}
+                        </p>
+                      )}
+                      {shortenerCreatedLink.description && (
+                        <p className="text-[11px] text-slate-500 line-clamp-2">
+                          {shortenerCreatedLink.description}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-slate-400 font-mono truncate" dir="ltr">
+                        {shortenerCreatedLink.originalUrl}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Short Links & Analytics Table */}
+              {shortenerRecentLinks.length > 0 && (
+                <div className="pt-3 border-t border-slate-100 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <BarChart3 className="w-3.5 h-3.5 text-blue-600" />
+                      پیوندهای اخیر و آمار بازدید ({shortenerRecentLinks.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={fetchShortLinks}
+                      className="text-[11px] text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>بروزرسانی آمار</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-0.5">
+                    {shortenerRecentLinks.map((item) => {
+                      const host = typeof window !== "undefined" ? window.location.host : "localhost:3000";
+                      const proto = typeof window !== "undefined" ? window.location.protocol : "http:";
+                      const itemShortUrl = `${proto}//${host}/s/${item.code}`;
+
+                      return (
+                        <div
+                          key={item.code}
+                          className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100/70 border border-slate-200/80 transition-colors"
+                        >
+                          <div className="space-y-0.5 overflow-hidden text-right">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-bold text-blue-600" dir="ltr">
+                                /s/{item.code}
+                              </span>
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                                <MousePointerClick className="w-2.5 h-2.5" />
+                                {item.clicks || 0} کلیک
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 truncate max-w-xs sm:max-w-md font-mono" dir="ltr">
+                              {item.originalUrl}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleCopyShortUrl(itemShortUrl)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-white transition-colors"
+                              title="کپی لینک"
+                            >
+                              {copiedShortUrl === itemShortUrl ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            <a
+                              href={itemShortUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-white transition-colors"
+                              title="باز کردن لینک"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteShortLink(item.code)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              title="حذف"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             /* D. Universal Dropzone for OCR, PDF, MATH, and QR Scan */
@@ -1445,23 +1925,33 @@ export default function AcharAIPage() {
           {/* Action Trigger Button with Stop Streaming Support */}
           <div className="pt-2 flex gap-2">
             <button
-              onClick={() => handleAnalyzeWithCustomData()}
-              disabled={isLoading && !isStreaming}
+              onClick={() => (activeTool === "shortener" ? handleCreateShortLink() : handleAnalyzeWithCustomData())}
+              disabled={(isLoading && !isStreaming) || isShortening}
               className={`flex-1 py-3.5 px-6 rounded-2xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-sm ${
-                isLoading && !isStreaming
+                (isLoading && !isStreaming) || isShortening
                   ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20 active:scale-[0.99]"
               }`}
             >
-              {isLoading ? (
+              {isLoading || isShortening ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
                   <span>در حال پردازش...</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>{activeTool === "chat" ? "ارسال پیام" : "شروع پردازش"}</span>
+                  {activeTool === "shortener" ? (
+                    <Scissors className="w-4 h-4" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  <span>
+                    {activeTool === "chat"
+                      ? "ارسال پیام"
+                      : activeTool === "shortener"
+                      ? "کوتاه‌سازی پیوند"
+                      : "شروع پردازش"}
+                  </span>
                 </>
               )}
             </button>

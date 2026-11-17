@@ -324,17 +324,28 @@ export async function POST(req: NextRequest) {
 ۲. ممنوعیت ساخت تصویر و ویدیو و فایل: شما قابلیت تولید عکس، ویدیو یا فایل دانلودی ندارید و نباید ادعای ساخت مدیا کنید.
 ۳. وظیفه اصلی (پاسخگویی اطلاعاتی و هدایت به ابزارهای برنامه):
    - به سوالات عمومی و فناورانه کاربر پاسخی کوتاه، مستند و شیوا به زبان فارسی بدهید.
-   - متناسب با نیاز کاربر، او را به یکی از ۵ ابزار تخصصی جعبه‌ابزار آچار هدایت کنید:
+   - متناسب با نیاز کاربر، او را به یکی از ابزارهای تخصصی جعبه‌ابزار آچار هدایت کنید:
      * برای استخراج متون، فاکتورها و تصاویر: ابزار **AI OCR** (کارت اول)
      * برای تحلیل معنایی، قراردادها و اسناد: ابزار **Chat with PDF** (کارت دوم)
      * برای اسکن، تست سلامت لینک و تولید بارکد: ابزار **AI QR Code** (کارت سوم)
      * برای حل گام‌به‌گام معادلات ریاضی و فیزیک: ابزار **Math Solver** (کارت چهارم)
      * برای خلاصه ۳ بندی مقالات و سایت‌ها: ابزار **URL Summarizer** (کارت پنجم)
+     * برای کوتاه‌سازی لینک‌ها، نام مستعار هوشمند و آمار کلیک: ابزار **URL Shortener** (کارت ششم)
 
 پیام یا پرسش کاربر:
 """
 ${userQuery}
 """`;
+        break;
+
+      case "shortener":
+        const shortenTarget = (url || customPrompt || textInput || "").trim();
+        specificToolInstruction = `You are a Smart Link Analyzer and Shortener Assistant.
+Analyze this destination link or web domain: "${shortenTarget}".
+Provide a concise, professional Persian response with:
+1. Destination verification & domain safety overview
+2. 3 suggested smart, memorable Latin slugs (e.g. "tech-expo", "achar-demo")
+3. A 1-sentence Persian summary of the destination topic.`;
         break;
 
       default:

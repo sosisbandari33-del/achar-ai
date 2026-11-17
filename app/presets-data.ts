@@ -2,7 +2,7 @@
 export interface DemoPreset {
   label: string;
   icon: string;
-  tool: "ocr" | "pdf_chat" | "qr" | "math" | "url" | "chat";
+  tool: "ocr" | "pdf_chat" | "qr" | "math" | "url" | "chat" | "shortener";
   fileName?: string;
   fileBase64?: string;
   mimeType?: string;
@@ -332,7 +332,7 @@ export function generateQrSamplePng(): string {
 // DEMO PRESETS DEFINITION
 // -------------------------------------------------------------
 
-export const ALL_DEMO_PRESETS: Record<"ocr" | "pdf_chat" | "qr" | "math" | "url" | "chat", DemoPreset[]> = {
+export const ALL_DEMO_PRESETS: Record<"ocr" | "pdf_chat" | "qr" | "math" | "url" | "chat" | "shortener", DemoPreset[]> = {
   ocr: [
     {
       label: "🧾 فاکتور رسمی",
@@ -440,6 +440,29 @@ export const ALL_DEMO_PRESETS: Record<"ocr" | "pdf_chat" | "qr" | "math" | "url"
       icon: "💡",
       tool: "chat",
       textInput: "تفاوت هوش مصنوعی پردازش تصویر با مدل‌های متنی چیست؟",
+    },
+  ],
+  shortener: [
+    {
+      label: "🔗 مقاله هوش مصنوعی",
+      icon: "🔗",
+      tool: "shortener",
+      url: "https://arxiv.org/abs/2403.05530?source=tech_exhibition_2026_showcase&medium=booth_qr",
+      textInput: "ai-paper",
+    },
+    {
+      label: "🛒 محصول با ترکینگ",
+      icon: "🛒",
+      tool: "shortener",
+      url: "https://shop.example.com/products/smart-iot-sensor-v2?utm_source=tehran_expo&utm_campaign=winter2026&discount=ACHAREXPO",
+      textInput: "iot-sensor",
+    },
+    {
+      label: "🌐 گیت‌هاب آچار AI",
+      icon: "🌐",
+      tool: "shortener",
+      url: "https://github.com/sosisbandari33-del/achar-ai",
+      textInput: "achar-code",
     },
   ],
 };
