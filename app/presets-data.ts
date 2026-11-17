@@ -2,7 +2,7 @@
 export interface DemoPreset {
   label: string;
   icon: string;
-  tool: "ocr" | "pdf_chat" | "qr" | "math" | "url";
+  tool: "ocr" | "pdf_chat" | "qr" | "math" | "url" | "chat";
   fileName?: string;
   fileBase64?: string;
   mimeType?: string;
@@ -332,7 +332,7 @@ export function generateQrSamplePng(): string {
 // DEMO PRESETS DEFINITION
 // -------------------------------------------------------------
 
-export const ALL_DEMO_PRESETS: Record<"ocr" | "pdf_chat" | "qr" | "math" | "url", DemoPreset[]> = {
+export const ALL_DEMO_PRESETS: Record<"ocr" | "pdf_chat" | "qr" | "math" | "url" | "chat", DemoPreset[]> = {
   ocr: [
     {
       label: "🧾 فاکتور رسمی",
@@ -420,6 +420,26 @@ export const ALL_DEMO_PRESETS: Record<"ocr" | "pdf_chat" | "qr" | "math" | "url"
       icon: "📶",
       tool: "qr",
       textInput: "WIFI:S:Exhibition_VIP;T:WPA;P:Achar2026;;",
+    },
+  ],
+  chat: [
+    {
+      label: "🧭 راهنمای ابزارها",
+      icon: "🧭",
+      tool: "chat",
+      textInput: "برای خواندن و استخراج جدول از عکس فاکتور خرید، کدام بخش برنامه را پیشنهاد می‌دهید؟",
+    },
+    {
+      label: "❓ معرفی آچار AI",
+      icon: "❓",
+      tool: "chat",
+      textInput: "جعبه‌ابزار آچار چه امکاناتی دارد و هر بخش چه کمکی به من می‌کند؟",
+    },
+    {
+      label: "💡 سوال فناوری",
+      icon: "💡",
+      tool: "chat",
+      textInput: "تفاوت هوش مصنوعی پردازش تصویر با مدل‌های متنی چیست؟",
     },
   ],
 };

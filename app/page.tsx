@@ -38,12 +38,13 @@ import {
   MicOff,
   Smartphone,
   Zap,
+  MessageSquareText,
 } from "lucide-react";
 
 // ==========================================
 // Types & Constants
 // ==========================================
-type ToolId = "ocr" | "pdf_chat" | "qr" | "math" | "url";
+type ToolId = "ocr" | "pdf_chat" | "qr" | "math" | "url" | "chat";
 
 interface ToolItem {
   id: ToolId;
@@ -125,6 +126,17 @@ const TOOLS: ToolItem[] = [
     tag: "Synthesis",
     dropzoneTitle: "نشانی وب را وارد کنید",
     dropzoneSubtitle: "استخراج سریع نکات مهم صفحه",
+    accept: "",
+  },
+  {
+    id: "chat",
+    name: "AI Concierge",
+    subtitle: "دستیار و راهنما",
+    description: "پاسخ به سوالات و هدایت هوشمند مشتری به ابزارهای برنامه.",
+    icon: MessageSquareText,
+    tag: "Guide",
+    dropzoneTitle: "گفت‌وگو با دستیار راهنما",
+    dropzoneSubtitle: "پرسش و راهنمایی مستقیم درباره امکانات جعبه‌ابزار",
     accept: "",
   },
 ];
@@ -707,7 +719,12 @@ export default function AcharAIPage() {
       return;
     }
 
-    if (activeTool !== "url" && activeTool !== "qr" && !currentBase64 && !currentText.trim()) {
+    if (activeTool === "chat" && !currentText.trim()) {
+      setErrorMessage("لطفاً سوال یا پیام خود را برای دستیار بنویسید.");
+      return;
+    }
+
+    if (activeTool !== "url" && activeTool !== "qr" && activeTool !== "chat" && !currentBase64 && !currentText.trim()) {
       setErrorMessage("لطفاً فایلی بارگذاری کنید یا متنی بنویسید.");
       return;
     }
@@ -947,16 +964,16 @@ export default function AcharAIPage() {
             ابزارهای هوشمند، ساده و بی‌نقص
           </h1>
           <p className="max-w-xl mx-auto text-sm sm:text-base text-slate-500 leading-relaxed">
-            پردازش اسناد، تصاویر، کد QR و معادلات با هوش مصنوعی و استریمینگ لحظه‌ای.
+            پردازش اسناد، تصاویر، کد QR، معادلات و گفت‌وگو با دستیار راهنما با استریمینگ لحظه‌ای.
           </p>
         </motion.div>
       </section>
 
       {/* ============================================================
-          3. Tools Grid (5 Selectable Tools)
+          3. Tools Grid (6 Selectable Tools)
       ============================================================ */}
       <section className="max-w-5xl mx-auto px-6 py-4 w-full">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
           {TOOLS.map((tool) => {
             const Icon = tool.icon;
             const isSelected = activeTool === tool.id;
@@ -1192,8 +1209,68 @@ export default function AcharAIPage() {
                 خلاصه‌سازی فوری در ۳ نکته کلیدی.
               </p>
             </div>
+          ) : activeTool === "chat" ? (
+            /* C. AI Concierge & Smart Guide View with Quick Tool Navigation */
+            <div className="space-y-4 text-right" dir="rtl">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-700 block">
+                  پرسش، راهنمایی یا سوال درباره ابزارها:
+                </label>
+                {/* Voice Input Button */}
+                <button
+                  type="button"
+                  onClick={handleToggleVoiceInput}
+                  className={`text-xs font-medium flex items-center gap-1 px-2.5 py-0.5 rounded-lg border transition-all ${
+                    isListeningVoice
+                      ? "bg-rose-50 text-rose-600 border-rose-300 animate-pulse"
+                      : "bg-slate-100 hover:bg-slate-200 text-slate-600 border-transparent"
+                  }`}
+                  title="ورودی صوتی فارسی"
+                >
+                  {isListeningVoice ? <MicOff className="w-3 h-3 text-rose-600" /> : <Mic className="w-3 h-3 text-blue-600" />}
+                  <span>{isListeningVoice ? "در حال ضبط..." : "صدا"}</span>
+                </button>
+              </div>
+
+              <div className="relative">
+                <textarea
+                  rows={3}
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  placeholder="مثال: من عکس یک فاکتور دارم، چطور متنش رو استخراج کنم؟ یا امکانات این جعبه‌ابزار چیست؟"
+                  className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all resize-none"
+                />
+              </div>
+
+              {/* Direct Navigation Quick Chips */}
+              <div className="pt-1">
+                <p className="text-[11px] font-medium text-slate-400 mb-2">هدایت سریع به ابزارهای تخصصی:</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: "ocr", label: "استخراج متن (OCR)", icon: ScanText },
+                    { id: "pdf_chat", label: "تحلیل اسناد و PDF", icon: FileText },
+                    { id: "qr", label: "بارکد و کد QR", icon: QrCode },
+                    { id: "math", label: "حل ریاضی و فیزیک", icon: Calculator },
+                    { id: "url", label: "خلاصه‌ساز وب", icon: Globe },
+                  ].map((t) => {
+                    const TIcon = t.icon;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => handleSelectTool(t.id as ToolId)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200/80 transition-all shadow-2xs hover:scale-[1.02] active:scale-95"
+                      >
+                        <TIcon className="w-3.5 h-3.5 text-blue-600" />
+                        <span>{t.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           ) : (
-            /* C. Universal Dropzone for OCR, PDF, MATH, and QR Scan */
+            /* D. Universal Dropzone for OCR, PDF, MATH, and QR Scan */
             <div className="space-y-4">
               <input
                 ref={fileInputRef}
@@ -1384,7 +1461,7 @@ export default function AcharAIPage() {
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>شروع پردازش</span>
+                  <span>{activeTool === "chat" ? "ارسال پیام" : "شروع پردازش"}</span>
                 </>
               )}
             </button>
